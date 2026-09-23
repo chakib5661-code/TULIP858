@@ -446,6 +446,49 @@ export async function syncOrdersOnServer(
   }
 }
 
+export interface DetectedTelegramChat {
+  chatId: string;
+  name: string;
+  username?: string;
+  chatType: 'group' | 'supergroup' | 'channel' | 'private' | string;
+  lastMessage?: string;
+  date?: string;
+  isConfigured?: boolean;
+  assignedChannels?: ('preorder' | 'proforma' | 'access' | 'general')[];
+}
+
+export interface DetectTelegramChatsResponse {
+  success: boolean;
+  count: number;
+  detectedChats: DetectedTelegramChat[];
+  bot?: {
+    id: number;
+    is_bot: boolean;
+    first_name: string;
+    username: string;
+  } | null;
+  error?: string;
+}
+
+export async function detectTelegramChats(token?: string): Promise<DetectTelegramChatsResponse> {
+  try {
+    const res = await fetch('/api/telegram/detect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    return {
+      success: false,
+      count: 0,
+      detectedChats: [],
+      error: err.message || 'Erreur lors de la détection des canaux Telegram.',
+    };
+  }
+}
+
 export interface TelegramStatusResponse {
   configured: boolean;
   tokenMasked?: string;
@@ -529,3 +572,4 @@ export async function saveTelegramSettings(settings: {
     return { success: false, error: err.message || 'Erreur réseau.' };
   }
 }
+

@@ -781,6 +781,182 @@ async function sendTelegramAccessRequestNotification(applicant: any) {
     }
   });
 
+  // Telegram Live Chat ID Detector API
+  app.all("/api/telegram/detect", async (req, res) => {
+    try {
+      const db = storeDb.loadDatabase();
+      const settings: any = db.storeSettings || {};
+      const reqToken = req.body?.token || req.query?.token;
+      const config = await resolveTelegramConfig('general');
+      const token = reqToken || config.token;
+
+      if (!token) {
+        return res.status(400).json({
+          success: false,
+          count: 0,
+          detectedChats: [],
+          error: "Aucun token Telegram configuré.",
+        });
+      }
+
+      // 1. Get bot info
+      let botInfo: any = null;
+      try {
+        const meRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+        const meJson = await meRes.json();
+        if (meJson.ok) {
+          botInfo = meJson.result;
+        }
+      } catch (e: any) {
+        console.warn("[Telegram Detector] getMe error:", e);
+      }
+
+      // 2. Check if webhook is active; if so, clear it temporarily to allow getUpdates
+      try {
+        const whRes = await fetch(`https://api.telegram.org/bot${token}/getWebhookInfo`);
+        const whJson = await whRes.json();
+        if (whJson.ok && whJson.result?.url) {
+          console.log("[Telegram Detector] Clearing webhook to allow getUpdates polling...");
+          await fetch(`https://api.telegram.org/bot${token}/deleteWebhook?drop_pending_updates=false`);
+        }
+      } catch (e: any) {
+        // ignore
+      }
+
+      // 3. Query getUpdates
+      const detectedMap = new Map<string, any>();
+
+      // Known / configured channels mapping helper
+      const getAssignedChannels = (cId: string): string[] => {
+        const assigned: string[] = [];
+        const clean = cId.trim();
+        if (settings.telegramPreorderChatId && settings.telegramPreorderChatId.includes(clean)) assigned.push('preorder');
+        if (settings.telegramProformaChatId && settings.telegramProformaChatId.includes(clean)) assigned.push('proforma');
+        if (settings.telegramAccessChatId && settings.telegramAccessChatId.includes(clean)) assigned.push('access');
+        if (settings.telegramChatId && settings.telegramChatId.includes(clean)) assigned.push('general');
+        return assigned;
+      };
+
+      // Seed known channels so they always appear in the detector
+      const seedChats = [
+        {
+          chatId: '-5365585827',
+          name: 'Groupe commande (Tulip)',
+          chatType: 'group',
+          lastMessage: 'Canal de diffusion officiel des commandes',
+        },
+        {
+          chatId: '5680755596',
+          name: 'Tulip Oran (Admin)',
+          username: 'tulip_oran',
+          chatType: 'private',
+          lastMessage: 'Compte administrateur principal',
+        },
+      ];
+
+      // Add user custom configured IDs if any
+      const configuredCustom = [
+        { id: settings.telegramPreorderChatId, label: 'Canal Précommandes Configuré' },
+        { id: settings.telegramProformaChatId, label: 'Canal Proforma Configuré' },
+        { id: settings.telegramAccessChatId, label: 'Canal Accès Pro Configuré' },
+        { id: settings.telegramChatId, label: 'Canal Général Configuré' },
+      ];
+
+      for (const custom of configuredCustom) {
+        if (custom.id) {
+          const ids = extractChatIds(custom.id);
+          for (const cId of ids) {
+            if (!seedChats.some((s) => s.chatId === cId)) {
+              seedChats.push({
+                chatId: cId,
+                name: custom.label,
+                chatType: cId.startsWith('-') ? 'group' : 'private',
+                lastMessage: 'ID enregistré dans les paramètres',
+              });
+            }
+          }
+        }
+      }
+
+      for (const s of seedChats) {
+        detectedMap.set(s.chatId, {
+          chatId: s.chatId,
+          name: s.name,
+          username: (s as any).username,
+          chatType: s.chatType,
+          lastMessage: s.lastMessage,
+          date: new Date().toISOString(),
+          isConfigured: getAssignedChannels(s.chatId).length > 0,
+          assignedChannels: getAssignedChannels(s.chatId),
+        });
+      }
+
+      // Fetch live updates from Telegram API
+      try {
+        const upRes = await fetch(
+          `https://api.telegram.org/bot${token}/getUpdates?limit=100&allowed_updates=${encodeURIComponent(
+            JSON.stringify(['message', 'edited_message', 'channel_post', 'my_chat_member', 'chat_member'])
+          )}`
+        );
+        const upJson = await upRes.json();
+
+        if (upJson.ok && Array.isArray(upJson.result)) {
+          for (const u of upJson.result) {
+            const msg = u.message || u.channel_post || u.edited_message || u.my_chat_member;
+            if (!msg?.chat?.id) continue;
+
+            const cId = String(msg.chat.id);
+            const chatType = msg.chat.type || (cId.startsWith('-') ? 'group' : 'private');
+            const chatTitle =
+              msg.chat.title ||
+              `${msg.from?.first_name || ''} ${msg.from?.last_name || ''}`.trim() ||
+              msg.chat.username ||
+              'Utilisateur Telegram';
+
+            const username = msg.chat.username || msg.from?.username;
+            const text =
+              msg.text ||
+              (msg.chat.type === 'group' || msg.chat.type === 'supergroup'
+                ? `Message groupe: ${msg.chat.title || ''}`
+                : 'Interaction récente');
+
+            const date = msg.date ? new Date(msg.date * 1000).toISOString() : new Date().toISOString();
+
+            detectedMap.set(cId, {
+              chatId: cId,
+              name: chatTitle,
+              username,
+              chatType,
+              lastMessage: text,
+              date,
+              isConfigured: getAssignedChannels(cId).length > 0,
+              assignedChannels: getAssignedChannels(cId),
+            });
+          }
+        }
+      } catch (err) {
+        console.warn("[Telegram Detector] getUpdates call warning:", err);
+      }
+
+      const detectedChats = Array.from(detectedMap.values());
+
+      res.json({
+        success: true,
+        count: detectedChats.length,
+        detectedChats,
+        bot: botInfo,
+      });
+    } catch (err: any) {
+      console.error("[API] /api/telegram/detect error:", err);
+      res.status(500).json({
+        success: false,
+        count: 0,
+        detectedChats: [],
+        error: err.message || "Erreur interne du détecteur Telegram.",
+      });
+    }
+  });
+
   // Telegram Test Notification Trigger
   app.post("/api/telegram/test", async (req, res) => {
     try {

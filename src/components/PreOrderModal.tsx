@@ -5,6 +5,8 @@ import { ALGERIAN_WILAYAS } from '../data/wilayas';
 import { formatDZD } from '../utils/pdfGenerator';
 import { AppLanguage, translations } from '../translations';
 import { getProductLocalizedDetails } from '../data/productTranslations';
+import { AlgerianPhoneInput } from './AlgerianPhoneInput';
+import { normalizeAlgerianPhone } from '../utils/phoneUtils';
 
 interface PreOrderModalProps {
   isOpen: boolean;
@@ -67,16 +69,17 @@ export const PreOrderModal: React.FC<PreOrderModalProps> = ({
   const totalUnits = items.reduce((sum, item) => sum + item.quantity, 0);
   const selectedWilaya = ALGERIAN_WILAYAS.find((w) => w.code === wilayaCode) || ALGERIAN_WILAYAS[30];
 
-  // Validate Algerian phone number
+  // Validate Algerian phone number (Algeria only)
   const validateAlgerianPhone = (num: string): boolean => {
-    const cleaned = num.replace(/\s+/g, '').replace(/-/g, '');
-    const regex = /^(0(5|6|7|2)[0-9]{8}|\+213(5|6|7|2)[0-9]{8})$/;
-    return regex.test(cleaned);
+    const norm = normalizeAlgerianPhone(num);
+    return /^0[2-7][0-9]{8}$/.test(norm);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: Record<string, string> = {};
+    const cleanPhone = normalizeAlgerianPhone(phone);
+    const cleanSecondaryPhone = normalizeAlgerianPhone(secondaryPhone);
 
     // PROFORMA: Ask ONLY for name and phone number
     if (isProforma) {
@@ -99,7 +102,7 @@ export const PreOrderModal: React.FC<PreOrderModalProps> = ({
       onSubmitOrder(
         {
           fullName: fullName.trim(),
-          phone: phone.trim(),
+          phone: cleanPhone || phone.trim(),
           wilayaCode: currentCustomer?.wilayaCode || selectedWilaya.code || '31',
           wilayaName: currentCustomer?.wilayaName || selectedWilaya.name || 'Oran',
           commune: currentCustomer?.commune || 'Demande Proforma',
@@ -144,8 +147,8 @@ export const PreOrderModal: React.FC<PreOrderModalProps> = ({
       {
         fullName: fullName.trim(),
         companyName: companyName.trim() || undefined,
-        phone: phone.trim(),
-        secondaryPhone: secondaryPhone.trim() || undefined,
+        phone: cleanPhone || phone.trim(),
+        secondaryPhone: cleanSecondaryPhone || undefined,
         wilayaCode: selectedWilaya.code,
         wilayaName: selectedWilaya.name,
         commune: deliveryMode === 'magasin' ? (commune.trim() || 'Oran') : commune.trim(),
@@ -294,22 +297,14 @@ export const PreOrderModal: React.FC<PreOrderModalProps> = ({
                       {lang === 'ar' ? 'رقم الهاتف للتواصل وتأكيد الحجز' : 'Numéro mobile pour confirmation'}
                     </span>
                   </label>
-                  <div className="relative">
-                    <Phone className={`w-4 h-4 text-slate-400 absolute ${isRtl ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2`} />
-                    <input
-                      id="proforma-phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="05XX XX XX XX ou 06 / 07"
-                      className={`w-full ${isRtl ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-2.5 text-sm bg-white border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono ${
-                        errors.phone ? 'border-rose-400 bg-rose-50' : 'border-slate-300'
-                      }`}
-                    />
-                  </div>
-                  {errors.phone && (
-                    <span className="text-[11px] text-rose-600 mt-1 block font-medium">{errors.phone}</span>
-                  )}
+                  <AlgerianPhoneInput
+                    id="proforma-phone"
+                    value={phone}
+                    onChange={setPhone}
+                    placeholder="05 XX XX XX XX"
+                    error={errors.phone}
+                    theme="light"
+                  />
                 </div>
               </div>
             </div>
@@ -365,42 +360,28 @@ export const PreOrderModal: React.FC<PreOrderModalProps> = ({
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       {t.phoneLabel} <span className="text-rose-500">*</span>
                     </label>
-                    <div className="relative">
-                      <Phone className={`w-4 h-4 text-slate-400 absolute ${isRtl ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2`} />
-                      <input
-                        id="client-phone"
-                        type="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="05XX XX XX XX ou 06 / 07"
-                        className={`w-full ${isRtl ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-2 text-sm bg-slate-50 border rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono ${
-                          errors.phone ? 'border-rose-400 bg-rose-50' : 'border-slate-300'
-                        }`}
-                      />
-                    </div>
-                    {errors.phone && (
-                      <span className="text-[11px] text-rose-600 mt-1 block">{errors.phone}</span>
-                    )}
+                    <AlgerianPhoneInput
+                      id="client-phone"
+                      value={phone}
+                      onChange={setPhone}
+                      placeholder="05 XX XX XX XX"
+                      error={errors.phone}
+                      theme="light"
+                    />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       {lang === 'ar' ? 'رقم هاتف ثانٍ (اختياري)' : 'Deuxième Numéro (Optionnel)'}
                     </label>
-                    <div className="relative">
-                      <Phone className={`w-4 h-4 text-slate-400 absolute ${isRtl ? 'right-3' : 'left-3'} top-1/2 -translate-y-1/2`} />
-                      <input
-                        id="client-secondary-phone"
-                        type="tel"
-                        value={secondaryPhone}
-                        onChange={(e) => setSecondaryPhone(e.target.value)}
-                        placeholder={lang === 'ar' ? 'في حال تعذر الوصول' : 'En cas de non-réponse'}
-                        className={`w-full ${isRtl ? 'pr-9 pl-3' : 'pl-9 pr-3'} py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono`}
-                      />
-                    </div>
-                    {errors.secondaryPhone && (
-                      <span className="text-[11px] text-rose-600 mt-1 block">{errors.secondaryPhone}</span>
-                    )}
+                    <AlgerianPhoneInput
+                      id="client-secondary-phone"
+                      value={secondaryPhone}
+                      onChange={setSecondaryPhone}
+                      placeholder={lang === 'ar' ? '07 XX XX XX XX' : '07 XX XX XX XX'}
+                      error={errors.secondaryPhone}
+                      theme="light"
+                    />
                   </div>
                 </div>
               </div>

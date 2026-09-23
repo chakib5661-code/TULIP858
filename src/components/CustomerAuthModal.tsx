@@ -23,6 +23,8 @@ import { CustomerApplication, CustomerUser, StoreSettings } from '../types';
 import { AppLanguage, translations } from '../translations';
 import { ALGERIAN_WILAYAS } from '../data/wilayas';
 import { loginCustomerOnServer, registerCustomerOnServer } from '../utils/api';
+import { AlgerianPhoneInput } from './AlgerianPhoneInput';
+import { normalizeAlgerianPhone, toAlgerianWhatsAppPhone } from '../utils/phoneUtils';
 
 interface CustomerAuthModalProps {
   isOpen: boolean;
@@ -261,12 +263,15 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
 
     setIsRegistering(true);
 
+    const cleanPhone = normalizeAlgerianPhone(phone);
+    const cleanSecondaryPhone = normalizeAlgerianPhone(secondaryPhone);
+
     const appData = {
       fullName: fullName.trim(),
       companyName: companyName.trim(),
-      phone: phone.trim(),
-      secondaryPhone: secondaryPhone.trim() || undefined,
-      email: email.trim().toLowerCase() || `${phone.replace(/\D/g, '')}@tulip-client.dz`,
+      phone: cleanPhone || phone.trim(),
+      secondaryPhone: cleanSecondaryPhone || undefined,
+      email: email.trim().toLowerCase() || `${(cleanPhone || phone).replace(/\D/g, '')}@tulip-client.dz`,
       wilayaCode,
       wilayaName,
       commune: commune.trim() || undefined,
@@ -665,16 +670,15 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     <label className="block text-xs font-bold text-slate-800 mb-1">
                       {t.authRegisterPhone} <span className="text-rose-500">*</span>
                     </label>
-                    <input
+                    <AlgerianPhoneInput
                       id="reg-phone"
-                      type="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="Ex: 05 55 12 34 56"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-amber-500 font-mono transition"
+                      onChange={setPhone}
+                      placeholder="05 55 12 34 56"
+                      theme="light"
                       required
                     />
-                    <span className="text-[10px] text-slate-500 block mt-0.5">
+                    <span className="text-[10px] text-slate-500 block mt-1">
                       {lang === 'ar' ? 'الرقم الذي ستصلك عليه بيانات الدخول عبر واتساب أو الهاتف' : 'Le numéro qui recevra vos identifiants par WhatsApp ou appel'}
                     </span>
                   </div>
@@ -704,13 +708,12 @@ export const CustomerAuthModal: React.FC<CustomerAuthModalProps> = ({
                     <label className="block text-xs font-bold text-slate-800 mb-1">
                       {lang === 'ar' ? 'رقم إضافي أو واتساب' : 'Téléphone secondaire ou WhatsApp'}
                     </label>
-                    <input
+                    <AlgerianPhoneInput
                       id="reg-secondary-phone"
-                      type="tel"
                       value={secondaryPhone}
-                      onChange={(e) => setSecondaryPhone(e.target.value)}
-                      placeholder="Ex: 07 70 00 00 00"
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-hidden focus:border-amber-500 font-mono transition"
+                      onChange={setSecondaryPhone}
+                      placeholder="07 70 00 00 00"
+                      theme="light"
                     />
                   </div>
 

@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import { CustomerApplication, CustomerUser } from '../types';
 import { ALGERIAN_WILAYAS } from '../data/wilayas';
+import { AlgerianPhoneInput } from './AlgerianPhoneInput';
+import { toAlgerianWhatsAppPhone, normalizeAlgerianPhone } from '../utils/phoneUtils';
 import {
   exportCustomersToExcel,
   exportCustomersToJSON,
@@ -92,6 +94,45 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
   const [newCustUsername, setNewCustUsername] = useState('');
   const [newCustPassword, setNewCustPassword] = useState('tulip2026');
   const [directCreateMsg, setDirectCreateMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [lastCreatedUser, setLastCreatedUser] = useState<{ fullName: string; phone: string; username: string; password: string; companyName?: string } | null>(null);
+
+  // WhatsApp Login Info Sender Helper (+213 Algeria Default)
+  const generateWhatsAppLoginUrl = (
+    phone: string,
+    fullName: string,
+    companyName: string | undefined,
+    username: string,
+    password?: string
+  ) => {
+    const cleanPhone = toAlgerianWhatsAppPhone(phone);
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://tulip-fragrance.dz';
+    const effectivePassword = password || 'tulip2026';
+
+    const text =
+      `🌸 *TULIP FRAGRANCE COMPANY - ACCÈS PROFESSIONNEL B2B*\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `Bonjour *${fullName}*${companyName ? ` (${companyName})` : ''},\n\n` +
+      `Votre compte professionnel Tulip Fragrance a été validé avec succès ! Vous avez désormais un accès complet aux tarifs de gros et au passage de précommandes directes.\n\n` +
+      `🔑 *Vos identifiants d'accès :*\n` +
+      `• *Nom d'utilisateur :* ${username}\n` +
+      `• *Mot de passe :* ${effectivePassword}\n\n` +
+      `🌐 *Lien d'accès à la plateforme :*\n${origin}\n\n` +
+      `📱 *Service Commercial Tulip :* 07 99 93 83 99\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+  };
+
+  const handleSendWhatsAppLogin = (
+    phone: string,
+    fullName: string,
+    companyName: string | undefined,
+    username: string,
+    password?: string
+  ) => {
+    const url = generateWhatsAppLoginUrl(phone, fullName, companyName, username, password);
+    window.open(url, '_blank');
+  };
 
   // Password visibility map for active users table
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
@@ -156,13 +197,22 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
     const wilaya = ALGERIAN_WILAYAS.find((w) => w.code === newCustWilayaCode);
     const wilayaName = wilaya ? wilaya.name : 'Alger';
 
-    onCreateCustomer({
-      username: newCustUsername.trim().toLowerCase(),
-      password: newCustPassword.trim(),
+    const cleanPhone = normalizeAlgerianPhone(newCustPhone) || newCustPhone.trim();
+    const createdData = {
       fullName: newCustName.trim(),
       companyName: newCustCompany.trim() || undefined,
-      email: newCustEmail.trim() || `${newCustUsername.trim()}@tulip-client.dz`,
-      phone: newCustPhone.trim(),
+      phone: cleanPhone,
+      username: newCustUsername.trim().toLowerCase(),
+      password: newCustPassword.trim(),
+    };
+
+    onCreateCustomer({
+      username: createdData.username,
+      password: createdData.password,
+      fullName: createdData.fullName,
+      companyName: createdData.companyName,
+      email: newCustEmail.trim() || `${createdData.username}@tulip-client.dz`,
+      phone: createdData.phone,
       wilayaCode: newCustWilayaCode,
       wilayaName: wilayaName,
       commune: newCustCommune.trim() || wilayaName,
@@ -170,6 +220,7 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
       status: 'approved',
     });
 
+    setLastCreatedUser(createdData);
     setDirectCreateMsg({
       type: 'success',
       text: `Le compte pour "${newCustName.trim()}" avec l'identifiant "${newCustUsername.trim()}" a été créé avec succès !`,
@@ -479,15 +530,35 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
                         <span>Appeler</span>
                       </a>
 
-                      <a
-                        href={`https://wa.me/${app.phone.replace(/[^0-9]/g, '')}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 rounded-lg bg-emerald-800/50 hover:bg-emerald-700 text-emerald-200 text-xs font-semibold flex items-center gap-1.5 transition"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>WhatsApp</span>
-                      </a>
+                      {app.status === 'approved' && app.assignedUsername ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleSendWhatsAppLogin(
+                              app.phone,
+                              app.fullName,
+                              app.companyName,
+                              app.assignedUsername!,
+                              app.assignedPassword
+                            )
+                          }
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+                          title="Envoyer les identifiants d'accès B2B par WhatsApp (+213)"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Envoyer Accès WhatsApp</span>
+                        </button>
+                      ) : (
+                        <a
+                          href={`https://wa.me/${toAlgerianWhatsAppPhone(app.phone)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 rounded-lg bg-emerald-800/50 hover:bg-emerald-700 text-emerald-200 text-xs font-semibold flex items-center gap-1.5 transition"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>WhatsApp</span>
+                        </a>
+                      )}
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -663,6 +734,25 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
                         </td>
 
                         <td className="p-3.5 text-right space-x-1.5 whitespace-nowrap">
+                          {/* Send WhatsApp Login Info */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleSendWhatsAppLogin(
+                                cust.phone,
+                                cust.fullName,
+                                cust.companyName,
+                                cust.username,
+                                cust.password
+                              )
+                            }
+                            className="p-1.5 rounded-lg bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 transition inline-flex items-center gap-1 cursor-pointer"
+                            title="Envoyer les identifiants d'accès B2B par WhatsApp"
+                          >
+                            <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
+                            <span className="text-[11px] font-bold hidden xl:inline">Envoyer Accès WhatsApp</span>
+                          </button>
+
                           {/* Toggle Active status */}
                           <button
                             type="button"
@@ -729,18 +819,44 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
 
           {directCreateMsg && (
             <div
-              className={`p-3.5 rounded-xl text-xs mb-4 flex items-center gap-2 ${
+              className={`p-3.5 rounded-xl text-xs mb-4 space-y-2.5 ${
                 directCreateMsg.type === 'success'
                   ? 'bg-emerald-950/80 border border-emerald-700 text-emerald-300'
                   : 'bg-rose-950/80 border border-rose-700 text-rose-300'
               }`}
             >
-              {directCreateMsg.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-              ) : (
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <div className="flex items-center gap-2">
+                {directCreateMsg.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                )}
+                <span className="font-semibold">{directCreateMsg.text}</span>
+              </div>
+
+              {directCreateMsg.type === 'success' && lastCreatedUser && (
+                <div className="pt-2 border-t border-emerald-800/60 flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[11px] text-emerald-200">
+                    Envoyer immédiatement les identifiants d'accès au client :
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSendWhatsAppLogin(
+                        lastCreatedUser.phone,
+                        lastCreatedUser.fullName,
+                        lastCreatedUser.companyName,
+                        lastCreatedUser.username,
+                        lastCreatedUser.password
+                      )
+                    }
+                    className="px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>Envoyer les Identifiants par WhatsApp (+213)</span>
+                  </button>
+                </div>
               )}
-              <span>{directCreateMsg.text}</span>
             </div>
           )}
 
@@ -777,15 +893,14 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">
-                  Numéro de Téléphone <span className="text-rose-400">*</span>
+                  Numéro de Téléphone (Algérie) <span className="text-rose-400">*</span>
                 </label>
-                <input
-                  type="tel"
+                <AlgerianPhoneInput
                   value={newCustPhone}
-                  onChange={(e) => setNewCustPhone(e.target.value)}
-                  placeholder="Ex: 0550 12 34 56"
+                  onChange={setNewCustPhone}
+                  placeholder="05 50 12 34 56"
+                  theme="dark"
                   required
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder:text-slate-500 focus:outline-hidden focus:border-amber-500"
                 />
               </div>
 
@@ -1272,17 +1387,22 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <a
-                    href={`https://wa.me/${selectedAppForApproval.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
-                      `Bonjour ${selectedAppForApproval.fullName},\nVotre compte Tulip Fragrance Company a été validé avec succès !\n\nVoici vos identifiants d'accès professionnels pour débloquer les tarifs grossiste et passer commande :\n• Identifiant : ${assignedUsername}\n• Mot de passe : ${assignedPassword}\n\nLien d'accès au catalogue : https://tulip-fragrance.dz`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-xs transition"
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSendWhatsAppLogin(
+                        selectedAppForApproval.phone,
+                        selectedAppForApproval.fullName,
+                        selectedAppForApproval.companyName,
+                        assignedUsername,
+                        assignedPassword
+                      )
+                    }
+                    className="flex-1 py-1.5 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    <span>Envoyer via WhatsApp</span>
-                  </a>
+                    <span>Envoyer via WhatsApp (+213)</span>
+                  </button>
                   <button
                     type="button"
                     onClick={handleCopyCredentials}
@@ -1338,13 +1458,34 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
               />
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => setSelectedCustForReset(null)}
-                className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-300 text-xs font-semibold"
+                className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold"
               >
                 Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (newResetPassword.trim()) {
+                    onResetCustomerPassword(selectedCustForReset.id, newResetPassword.trim());
+                    handleSendWhatsAppLogin(
+                      selectedCustForReset.phone,
+                      selectedCustForReset.fullName,
+                      selectedCustForReset.companyName,
+                      selectedCustForReset.username,
+                      newResetPassword.trim()
+                    );
+                    setSelectedCustForReset(null);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                title="Enregistrer et envoyer les identifiants par WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5" />
+                <span>Enregistrer & WhatsApp</span>
               </button>
               <button
                 type="button"
@@ -1354,7 +1495,7 @@ export const AdminCustomerManagement: React.FC<AdminCustomerManagementProps> = (
                     setSelectedCustForReset(null);
                   }
                 }}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 text-xs font-bold"
+                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold"
               >
                 Enregistrer
               </button>

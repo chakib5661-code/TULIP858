@@ -24,7 +24,9 @@ import {
   fetchTelegramStatus,
   triggerTelegramTest,
   saveTelegramSettings,
+  detectTelegramChats,
   TelegramStatusResponse,
+  DetectedTelegramChat,
 } from '../utils/api';
 
 interface AdminTelegramModalProps {
@@ -65,6 +67,30 @@ export const AdminTelegramModal: React.FC<AdminTelegramModalProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showAdvancedToken, setShowAdvancedToken] = useState(false);
 
+  // Telegram Chat ID Detector state
+  const [detectedChats, setDetectedChats] = useState<DetectedTelegramChat[]>([]);
+  const [detecting, setDetecting] = useState(false);
+  const [detectNotice, setDetectNotice] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const runChatDetection = async () => {
+    setDetecting(true);
+    setDetectNotice(null);
+    try {
+      const res = await detectTelegramChats(botToken);
+      if (res.success && res.detectedChats && res.detectedChats.length > 0) {
+        setDetectedChats(res.detectedChats);
+        setDetectNotice(`${res.detectedChats.length} canal/canaux et groupes Telegram détectés avec succès !`);
+      } else {
+        setDetectNotice(res.error || 'Aucun nouveau groupe détecté. Envoyez un message dans le groupe avec le bot puis réessayez.');
+      }
+    } catch (err: any) {
+      setDetectNotice(err.message || 'Erreur lors du scan Telegram.');
+    } finally {
+      setDetecting(false);
+    }
+  };
+
   const loadStatus = async () => {
     setLoading(true);
     try {
@@ -90,6 +116,7 @@ export const AdminTelegramModal: React.FC<AdminTelegramModalProps> = ({
       setBotToken(storeSettings.telegramBotToken || '8908435035:AAFYIq74hxJeFeiQAPRx_g_WZ7R5fL0uwu8');
       setNotificationsEnabled(storeSettings.telegramNotificationsEnabled !== false);
       loadStatus();
+      runChatDetection();
       setTestResult(null);
       setSaveSuccess(false);
     }
@@ -454,89 +481,219 @@ export const AdminTelegramModal: React.FC<AdminTelegramModalProps> = ({
             </div>
           </div>
 
-          {/* Quick-Assign from Connected Subscribers / Groups */}
-          {status?.subscribers && status.subscribers.length > 0 && (
-            <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/60 space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="text-xs font-bold text-white flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-sky-400" />
-                  Canaux & Contacts détectés avec le Bot (Attribution en 1 Clic) :
+          {/* CHAT ID DETECTOR SECTION */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-b from-slate-800/80 to-slate-850 border border-sky-500/30 space-y-4 shadow-lg">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/80 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center font-bold">
+                  <Bot className="w-4 h-4" />
                 </div>
-                <span className="text-[10px] text-slate-400">
-                  {status.subscribers.length} canal/canaux actif(s)
-                </span>
+                <div>
+                  <div className="text-xs sm:text-sm font-bold text-white flex items-center gap-2">
+                    <span>Détecteur de Chat ID & Groupes Telegram</span>
+                    <span className="px-2 py-0.5 rounded-full bg-sky-500/20 text-sky-300 text-[10px] font-mono font-bold">
+                      {detectedChats.length} détecté(s)
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    Détecte automatiquement les IDs de vos groupes et discussions privées pour les assigner en 1 clic
+                  </p>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                {status.subscribers.map((sub) => (
-                  <div
-                    key={sub.chatId}
-                    className="p-3 rounded-xl bg-slate-850 border border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white text-sm">{sub.name}</span>
-                        {sub.chatType === 'group' || sub.chatType === 'supergroup' ? (
-                          <span className="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px] font-semibold border border-purple-500/30">
-                            Groupe Telegram
+              <button
+                type="button"
+                onClick={runChatDetection}
+                disabled={detecting}
+                className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${detecting ? 'animate-spin' : ''}`} />
+                <span>{detecting ? 'Scan en cours...' : 'Scanner les Nouveaux Groupes'}</span>
+              </button>
+            </div>
+
+            {/* Notification alert from detector */}
+            {detectNotice && (
+              <div className="p-2.5 rounded-xl bg-sky-950/60 border border-sky-600/40 text-sky-300 text-xs flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-sky-400 shrink-0" />
+                  <span>{detectNotice}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetectNotice(null)}
+                  className="text-slate-400 hover:text-white text-xs"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* List of Detected Chats */}
+            {detectedChats.length > 0 ? (
+              <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                {detectedChats.map((chat) => {
+                  const isAssignedPreorder = preorderChatId.includes(chat.chatId);
+                  const isAssignedProforma = proformaChatId.includes(chat.chatId);
+                  const isAssignedAccess = accessChatId.includes(chat.chatId);
+                  const isAssignedGeneral = generalChatId.includes(chat.chatId);
+
+                  return (
+                    <div
+                      key={chat.chatId}
+                      className="p-3 rounded-xl bg-slate-900/90 border border-slate-700/80 hover:border-slate-600 transition flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-bold text-white text-sm">{chat.name}</span>
+                          {chat.chatType === 'group' || chat.chatType === 'supergroup' ? (
+                            <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-semibold border border-purple-500/30">
+                              Groupe
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">
+                              Contact Privé
+                            </span>
+                          )}
+                          {chat.username && (
+                            <span className="text-slate-400 font-mono text-[11px]">@{chat.username}</span>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs text-sky-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 flex items-center gap-1.5">
+                            ID: <strong>{chat.chatId}</strong>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(chat.chatId);
+                                setCopiedId(chat.chatId);
+                                setTimeout(() => setCopiedId(null), 2500);
+                              }}
+                              className="text-slate-400 hover:text-white p-0.5"
+                              title="Copier cet ID"
+                            >
+                              {copiedId === chat.chatId ? (
+                                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
                           </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold border border-emerald-500/30">
-                            Compte Privé
-                          </span>
+
+                          {/* Current Assignments Badges */}
+                          {isAssignedPreorder && (
+                            <span className="px-1.5 py-0.5 rounded bg-pink-500/20 text-pink-300 text-[10px] font-bold border border-pink-500/30">
+                              🌸 Précommandes
+                            </span>
+                          )}
+                          {isAssignedProforma && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-bold border border-amber-500/30">
+                              📄 Proforma
+                            </span>
+                          )}
+                          {isAssignedAccess && (
+                            <span className="px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-300 text-[10px] font-bold border border-sky-500/30">
+                              🔑 Accès Pro
+                            </span>
+                          )}
+                          {isAssignedGeneral && (
+                            <span className="px-1.5 py-0.5 rounded bg-slate-700 text-slate-300 text-[10px] font-bold">
+                              ⚡ Général
+                            </span>
+                          )}
+                        </div>
+
+                        {chat.lastMessage && (
+                          <div className="text-[10px] text-slate-400 truncate max-w-md">
+                            Dernier message : &ldquo;{chat.lastMessage}&rdquo;
+                          </div>
                         )}
                       </div>
-                      <span className="font-mono text-xs text-sky-400 block mt-0.5">
-                        ID: {sub.chatId}
-                      </span>
+
+                      {/* 1-Click Assignment Buttons */}
+                      <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                        <span className="text-[10px] text-slate-400 font-semibold mr-0.5 hidden sm:inline">
+                          Assigner :
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => assignChatToChannel(chat.chatId, 'preorder')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                            isAssignedPreorder
+                              ? 'bg-pink-600 text-white border-pink-500 shadow-xs'
+                              : 'bg-pink-500/10 hover:bg-pink-500/20 text-pink-300 border-pink-500/30'
+                          }`}
+                          title="Assigner aux notifications de Précommandes"
+                        >
+                          🌸 Précommandes
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => assignChatToChannel(chat.chatId, 'proforma')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                            isAssignedProforma
+                              ? 'bg-amber-600 text-white border-amber-500 shadow-xs'
+                              : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30'
+                          }`}
+                          title="Assigner aux Factures Proforma"
+                        >
+                          📄 Proforma
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => assignChatToChannel(chat.chatId, 'access')}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                            isAssignedAccess
+                              ? 'bg-sky-600 text-white border-sky-500 shadow-xs'
+                              : 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border-sky-500/30'
+                          }`}
+                          title="Assigner aux Demandes d'Accès Client"
+                        >
+                          🔑 Accès Pro
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => assignChatToChannel(chat.chatId, 'general')}
+                          className={`px-2 py-1 rounded-lg text-[11px] font-bold transition cursor-pointer border ${
+                            isAssignedGeneral
+                              ? 'bg-slate-700 text-white border-slate-500'
+                              : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700'
+                          }`}
+                          title="Assigner comme canal de repli général"
+                        >
+                          ⚡ Général
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Attribution Action Buttons */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <button
-                        type="button"
-                        onClick={() => assignChatToChannel(sub.chatId, 'preorder')}
-                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition cursor-pointer border ${
-                          preorderChatId === sub.chatId
-                            ? 'bg-pink-600 text-white border-pink-500'
-                            : 'bg-pink-500/10 hover:bg-pink-500/20 text-pink-300 border-pink-500/30'
-                        }`}
-                        title="Assigner aux Précommandes"
-                      >
-                        🌸 Précommandes
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => assignChatToChannel(sub.chatId, 'proforma')}
-                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition cursor-pointer border ${
-                          proformaChatId === sub.chatId
-                            ? 'bg-amber-600 text-white border-amber-500'
-                            : 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border-amber-500/30'
-                        }`}
-                        title="Assigner aux Factures Proforma"
-                      >
-                        📄 Proforma
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => assignChatToChannel(sub.chatId, 'access')}
-                        className={`px-2.5 py-1.5 rounded-lg text-[11px] font-semibold transition cursor-pointer border ${
-                          accessChatId === sub.chatId
-                            ? 'bg-sky-600 text-white border-sky-500'
-                            : 'bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border-sky-500/30'
-                        }`}
-                        title="Assigner aux Demandes d'Accès"
-                      >
-                        🔑 Accès Pro
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
+            ) : (
+              <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-xs text-slate-400 space-y-1">
+                <p>Aucun canal détecté pour le moment.</p>
+                <p className="text-[11px] text-slate-500">
+                  Cliquez sur « Scanner les Nouveaux Groupes » ou suivez le guide ci-dessous pour ajouter un groupe.
+                </p>
+              </div>
+            )}
+
+            {/* How-to connect a new group banner */}
+            <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800/80 text-[11px] text-slate-400 space-y-1">
+              <div className="font-semibold text-slate-300 flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-sky-400" />
+                <span>Comment connecter un nouveau groupe ou canal Telegram ?</span>
+              </div>
+              <ol className="list-decimal list-inside space-y-0.5 text-slate-400 pl-1">
+                <li>Ajoutez le bot <strong className="text-white">@tulip5661bot</strong> comme administrateur ou membre dans votre groupe Telegram</li>
+                <li>Envoyez n&apos;importe quel message dans le groupe (ex : <em>« Bonjour Tulip »</em>)</li>
+                <li>Cliquez sur le bouton <strong className="text-sky-300">« Scanner les Nouveaux Groupes »</strong> ci-dessus : le groupe s&apos;affichera automatiquement avec son ID négatif !</li>
+              </ol>
             </div>
-          )}
+          </div>
 
           {/* Collapsible Advanced: Bot Token */}
           <div className="border border-slate-800 rounded-2xl overflow-hidden">

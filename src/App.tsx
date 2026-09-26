@@ -51,7 +51,7 @@ import { PwaInstallModal } from './components/PwaInstallModal';
 import { PwaInstallAdviceBanner } from './components/PwaInstallAdviceBanner';
 import { AppLanguage } from './translations';
 import { downloadOrderPDF, formatDZD } from './utils/pdfGenerator';
-import { trackCustomEvent } from './utils/analytics';
+import { trackCustomEvent, applyServerAnalyticsConfig } from './utils/analytics';
 import { isProductTopSeller } from './utils/productUtils';
 import { detectUserDevice, DeviceInfo } from './utils/deviceDetector';
 import {
@@ -889,6 +889,10 @@ export default function App() {
       try {
         const data = await fetchSyncData();
         if (!isMounted || !data) return;
+
+        if (data.analyticsConfig) {
+          applyServerAnalyticsConfig(data.analyticsConfig);
+        }
 
         // Skip state updates entirely if database has not changed on server
         if (data.lastUpdated && data.lastUpdated === lastSyncedServerTimeRef.current) {

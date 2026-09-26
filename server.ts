@@ -1,6 +1,7 @@
 import express from "express";
 import http from "http";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 import * as storeDb from "./src/server/storeDb";
 
@@ -39,10 +40,24 @@ storeDb.loadDatabase();
     });
   });
 
+  // Analytics Environment Configuration Endpoint
+  app.get("/api/analytics-config", (_req, res) => {
+    const gaMeasurementId = (process.env.VITE_GA_MEASUREMENT_ID || process.env.GA_MEASUREMENT_ID || "").trim();
+    const clarityProjectId = (process.env.VITE_CLARITY_PROJECT_ID || process.env.CLARITY_PROJECT_ID || "").trim();
+    res.json({
+      status: "ok",
+      gaMeasurementId,
+      clarityProjectId,
+    });
+  });
+
   // Global Sync / Bootstrap Endpoint for Real-Time Multi-Device State
   app.get("/api/sync", (_req, res) => {
     try {
       const db = storeDb.loadDatabase();
+      const gaMeasurementId = (process.env.VITE_GA_MEASUREMENT_ID || process.env.GA_MEASUREMENT_ID || "").trim();
+      const clarityProjectId = (process.env.VITE_CLARITY_PROJECT_ID || process.env.CLARITY_PROJECT_ID || "").trim();
+
       res.json({
         status: "ok",
         products: db.products,
@@ -51,6 +66,10 @@ storeDb.loadDatabase();
         customerUsers: db.customerUsers,
         adBanners: db.adBanners,
         storeSettings: db.storeSettings,
+        analyticsConfig: {
+          gaMeasurementId,
+          clarityProjectId,
+        },
         lastUpdated: db.lastUpdated,
         serverTime: new Date().toISOString(),
       });
@@ -1091,6 +1110,19 @@ async function sendTelegramAccessRequestNotification(applicant: any) {
       const distPath = path.join(process.cwd(), "dist");
       app.use(express.static(distPath));
       app.get("*", (_req, res) => {
+        try {
+          const indexPath = path.join(distPath, "index.html");
+          if (fs.existsSync(indexPath)) {
+            let html = fs.readFileSync(indexPath, "utf8");
+            const gaMeasurementId = (process.env.VITE_GA_MEASUREMENT_ID || process.env.GA_MEASUREMENT_ID || "").trim();
+            const clarityProjectId = (process.env.VITE_CLARITY_PROJECT_ID || process.env.CLARITY_PROJECT_ID || "").trim();
+            const envInjection = `<script>window.__TULIP_ENV__ = Object.assign(window.__TULIP_ENV__ || {}, { VITE_GA_MEASUREMENT_ID: ${JSON.stringify(gaMeasurementId)}, VITE_CLARITY_PROJECT_ID: ${JSON.stringify(clarityProjectId)} });</script>`;
+            html = html.replace("<head>", `<head>\n    ${envInjection}`);
+            return res.send(html);
+          }
+        } catch (e) {
+          console.warn("[Server] Notice injecting env into index.html:", e);
+        }
         res.sendFile(path.join(distPath, "index.html"));
       });
     }

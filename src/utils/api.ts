@@ -18,6 +18,10 @@ export interface SyncDataResponse {
   customerUsers: CustomerUser[];
   adBanners: AdBanner[];
   storeSettings: StoreSettings;
+  analyticsConfig?: {
+    gaMeasurementId?: string;
+    clarityProjectId?: string;
+  };
   lastUpdated: string;
   serverTime: string;
 }

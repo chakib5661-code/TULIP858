@@ -2011,14 +2011,14 @@ export default function App() {
       ) : (
         <>
           {/* Hero / Information Showcase Banner */}
-          <section className="bg-slate-900 text-white border-b border-slate-800 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#f59e0b_1px,transparent_1px)] [background-size:16px_16px] pointer-events-none"></div>
+          <section className="bg-gradient-to-br from-[#3b021d] via-[#4d0427] to-[#1f0210] text-white border-b border-[#70083b]/60 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#ec4899_1.2px,transparent_1.2px)] [background-size:16px_16px] pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto px-4 py-3.5 sm:py-6 lg:py-8 relative z-10">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 lg:gap-6">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2">
-                <ShieldCheck className="w-3.5 h-3.5" />
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#be185d]/20 text-rose-200 border border-[#f472b6]/30 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2">
+                <ShieldCheck className="w-3.5 h-3.5 text-rose-300" />
                 <span>Vente en Gros & Demi-Gros aux Parfumeurs & Artisans en Algérie</span>
               </div>
 
@@ -2026,7 +2026,7 @@ export default function App() {
                 Matières Premières de Parfumerie : Extraits & Flacons
               </h2>
 
-              <p className="text-xs sm:text-sm text-slate-300 mt-1 sm:mt-2 leading-relaxed max-w-xl">
+              <p className="text-xs sm:text-sm text-rose-100/90 mt-1 sm:mt-2 leading-relaxed max-w-xl">
                 <span className="block sm:hidden">
                   Disponibilités réelles synchronisées avec le stock. Réservation en ligne avec Bon de Précommande PDF.
                 </span>
@@ -2041,18 +2041,18 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setSelectedFamily('Extrait')}
-                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 font-semibold items-center gap-1.5 transition cursor-pointer"
+                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-gradient-to-r from-[#9f0e4e] to-[#c2185b] hover:opacity-95 text-white border border-rose-300/40 font-semibold items-center gap-1.5 transition cursor-pointer shadow-sm"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <Sparkles className="w-3.5 h-3.5 text-rose-200" />
                   Famille Extraits ({familyCounts.Extrait} refs)
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setSelectedFamily('Flacon')}
-                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-semibold items-center gap-1.5 transition cursor-pointer"
+                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-rose-100 border border-white/20 font-semibold items-center gap-1.5 transition cursor-pointer"
                 >
-                  <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                  <Layers className="w-3.5 h-3.5 text-rose-300" />
                   Famille Flacons ({familyCounts.Flacon} refs)
                 </button>
 
@@ -2060,23 +2060,23 @@ export default function App() {
                   type="button"
                   id="hero-shortcut-accessories"
                   onClick={() => setSelectedFamily('Accessoire')}
-                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 font-semibold items-center gap-1.5 transition cursor-pointer"
+                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-rose-100 border border-white/20 font-semibold items-center gap-1.5 transition cursor-pointer"
                 >
-                  <Wrench className="w-3.5 h-3.5 text-teal-400" />
+                  <Wrench className="w-3.5 h-3.5 text-rose-300" />
                   Famille Accessoires ({familyCounts.Accessoire} refs)
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleSelectInterface('quick')}
-                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-semibold items-center gap-1.5 transition cursor-pointer"
+                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/70 text-rose-200 border border-rose-500/40 font-semibold items-center gap-1.5 transition cursor-pointer"
                 >
-                  <LayoutGrid className="w-3.5 h-3.5 text-emerald-400" />
+                  <LayoutGrid className="w-3.5 h-3.5 text-rose-400" />
                   {currentLang === 'ar' ? 'الطلب السريع (جدول)' : 'Basculer en Commande Rapide'}
                 </button>
 
-                <div className="flex items-center gap-1.5 text-slate-400 text-[11px] sm:text-xs">
-                  <Truck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-1.5 text-rose-200/80 text-[11px] sm:text-xs">
+                  <Truck className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                   <span>Livraison 58 Wilayas (Yalidine / Domicile / Magasin)</span>
                 </div>
               </div>
@@ -2084,7 +2084,7 @@ export default function App() {
 
             {/* Right Side Showcase: Stock & Pre-Order Guarantee (Hidden on mobile for smaller footprint and less detail) */}
             {isAdminMode ? (
-              <div className="hidden sm:block bg-slate-800/90 border border-emerald-500/50 rounded-2xl p-4 sm:p-5 max-w-sm w-full shadow-lg">
+              <div className="hidden sm:block bg-[#240313]/85 backdrop-blur-md border border-emerald-500/50 rounded-2xl p-4 sm:p-5 max-w-sm w-full shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
                     <FileSpreadsheet className="w-4 h-4" />
@@ -2095,7 +2095,7 @@ export default function App() {
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                <p className="text-xs text-rose-100/90 leading-relaxed mb-3">
                   Votre logiciel de caisse n'a pas d'API ? Exportez simplement votre fichier Excel pour mettre à jour les stocks du site en 1 clic.
                 </p>
 
@@ -2109,23 +2109,23 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <div className="hidden sm:block bg-slate-800/90 border border-amber-500/30 rounded-2xl p-4 sm:p-5 max-w-sm w-full shadow-xl">
+              <div className="hidden sm:block bg-[#240313]/85 backdrop-blur-md border border-[#c2185b]/40 rounded-2xl p-4 sm:p-5 max-w-sm w-full shadow-2xl">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <PackageCheck className="w-4 h-4" />
+                  <span className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <PackageCheck className="w-4 h-4 text-rose-400" />
                     Réservation Express 48H
                   </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-semibold">
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#70083b]/80 text-rose-100 border border-[#c2185b]/60 font-semibold">
                     Stock Réel
                   </span>
                 </div>
 
-                <p className="text-xs text-slate-300 leading-relaxed mb-3">
+                <p className="text-xs text-rose-100/90 leading-relaxed mb-3">
                   Sélectionnez vos extraits et flacons, téléchargez votre <strong>Bon de Précommande officiel en PDF</strong> et transmettez-le directement pour expédition rapide.
                 </p>
 
-                <div className="flex items-center gap-2 pt-1 border-t border-slate-700/60 text-xs text-slate-300">
-                  <Phone className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <div className="flex items-center gap-2 pt-1 border-t border-[#70083b]/60 text-xs text-rose-200">
+                  <Phone className="w-3.5 h-3.5 text-rose-400 shrink-0" />
                   <span>Contact Telegram & Vente : <strong className="text-white">+213 799 93 83 99</strong></span>
                 </div>
               </div>
